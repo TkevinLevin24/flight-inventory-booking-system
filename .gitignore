@@ -66,3 +66,25 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# Build files
+build/
+out/
+Debug/
+Release/
+
+# Visual Studio
+.vs/
+*.obj
+*.pdb
+*.ilk
+*.exe
+*.lib
+
+# Temporary files
+*.tmp
+*.log
+
+# VS Code local settings
+.vscode/
+
