@@ -5,6 +5,7 @@
 #include <limits>
 #include "BookingSystem.h"
 #include "CsvStorage.h"
+#include "BookingService.h"
 
 // Display main menu
 void displayMenu() {
@@ -255,8 +256,11 @@ void registerPassenger(BookingSystem& system) {
 }
 
 // Create booking
-// Create booking
-void createBooking(BookingSystem& system) {
+
+void createBooking(
+    BookingSystem& system,
+    BookingService& bookingService
+) {
 
     std::cout << "\nEnter 0 in any field to return to the menu.\n\n";
 
@@ -330,27 +334,42 @@ void createBooking(BookingSystem& system) {
         return;
     }
 
-    // Attempt booking
-    
-if (system.createBooking(bookingId, flightNumber, passengerId)) {
-    std::cout << "\nBooking created successfully.\n";
 
-    if (CsvStorage::saveBookings(system, "data/bookings.csv")) {
-        std::cout << "Booking saved successfully to CSV.\n";
-    } else {
+
+    // Attempt booking through BookingService
+    if (bookingService.createBooking(
+        bookingId,
+        flightNumber,
+        passengerId
+    )) {
+        std::cout
+            << "\nBooking created and saved successfully.\n";
+
+    } else if (!bookingService.isPersistenceHealthy()) {
+
         std::cerr
-            << "ERROR: Booking was created in memory, "
-            << "but could not be saved to CSV.\n";
+            << "\nCRITICAL: Booking persistence failed. "
+            << "Further booking modifications are disabled.\n";
+
+        std::cerr
+            << "WARNING: The operation may have changed "
+            << "memory without being saved to CSV.\n";
+
+    } else {
+
+        std::cout
+            << "\nERROR: Could not create booking.\n";
     }
-
-} else {
-    std::cout << "\nERROR: Could not create booking.\n";
 }
 
-}
+
+
 
 // Cancel booking
-void cancelBooking(BookingSystem& system) {
+void cancelBooking(
+    BookingSystem& system,
+    BookingService& bookingService
+) {
 
     std::cout << "\nEnter 0 to return to the menu.\n\n";
 
@@ -387,24 +406,31 @@ void cancelBooking(BookingSystem& system) {
         return;
     }
 
-    // Attempt cancellation
-   
-if (system.cancelBooking(bookingId)) {
-    std::cout << "\nBooking cancelled successfully.\n";
 
-    if (CsvStorage::saveBookings(system, "data/bookings.csv")) {
-        std::cout << "Booking cancellation saved to CSV.\n";
-    } else {
+    // Attempt cancellation through BookingService
+    if (bookingService.cancelBooking(bookingId)) {
+
+        std::cout
+            << "\nBooking cancelled and saved successfully.\n";
+
+    } else if (!bookingService.isPersistenceHealthy()) {
+
         std::cerr
-            << "ERROR: Booking was cancelled in memory, "
-            << "but could not be saved to CSV.\n";
+            << "\nCRITICAL: Booking persistence failed. "
+            << "Further booking modifications are disabled.\n";
+
+        std::cerr
+            << "WARNING: The operation may have changed "
+            << "memory without being saved to CSV.\n";
+
+    } else {
+
+        std::cout
+            << "\nERROR: Could not cancel booking.\n";
     }
-
-} else {
-    std::cout << "\nERROR: Could not cancel booking.\n";
 }
 
-}
+
 
 // Search booking
 void searchBooking(const BookingSystem& system) {
@@ -530,6 +556,19 @@ if (passengersLoadedSuccessfully) {
     }
 
 
+BookingService bookingService(
+    system,
+    [](const BookingSystem& currentSystem) {
+        return CsvStorage::saveBookings(
+            currentSystem,
+            "data/bookings.csv"
+        );
+    },
+    bookingsLoadedSuccessfully
+);
+
+
+
     bool running = true;
 
     try {
@@ -573,23 +612,30 @@ if (passengersLoadedSuccessfully) {
             << "because the CSV database was not loaded correctly.\n";
     }
 
-            } else if (option == "3") {
-                if (bookingsLoadedSuccessfully) {
-                    createBooking(system);
-                    } else {
-                    std::cout
-                        << "\nERROR: Booking creation is disabled "
-                        << "because saved bookings were not loaded.\n";
-                }
-            } else if (option == "4") {
-                if (bookingsLoadedSuccessfully) {
-                    cancelBooking(system);
-                     } else {
-                    std::cout
-                        << "\nERROR: Booking cancellation is disabled "
-                        << "because saved bookings were not loaded.\n";
 
-            }
+} else if (option == "3") {
+
+    if (bookingService.isPersistenceHealthy()) {
+        createBooking(system, bookingService);
+    } else {
+        std::cout
+            << "\nERROR: Booking creation is disabled "
+            << "because booking persistence is unavailable.\n";
+    }
+
+} else if (option == "4") {
+
+    if (bookingService.isPersistenceHealthy()) {
+        cancelBooking(system, bookingService);
+    } else {
+        std::cout
+            << "\nERROR: Booking cancellation is disabled "
+            << "because booking persistence is unavailable.\n";
+    }
+
+
+
+
          } else if (option == "5") {
 
                 system.displayFlights();

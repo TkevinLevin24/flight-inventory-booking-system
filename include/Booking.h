@@ -34,6 +34,8 @@ public:
     bool confirmBooking();
 
     bool restoreCancelled();
+    // Restore a cancelled booking after a failed save
+bool rollbackCancellation();
 
     bool cancelBooking();
 

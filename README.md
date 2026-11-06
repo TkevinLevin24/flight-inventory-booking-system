@@ -13,8 +13,12 @@ This project explores core backend concerns found in airline reservation systems
 - **CSV persistence:** load flights, passengers, and bookings when the application starts; save new flights, passengers, and booking changes.
 - **CSV validation:** check headers, required fields, identifiers, references, booking states, and available capacity before restoring bookings.
 - **Safer booking writes:** write booking data to a temporary file before attempting to replace the destination CSV.
+- **Booking service:** coordinates booking creation, cancellation, and persistence operations.
+- **Rollback on save failure:** restores the previous in-memory booking and seat state when a persistence operation reports failure.
+- **Failure protection:** blocks further booking modifications after a detected persistence failure.
 - **Interactive CLI:** numbered menu with input validation, booking search, and system statistics.
-- **Automated tests:** five CTest suites covering domain behavior, integration, and CSV storage.
+- **Automated tests:** six CTest suites covering domain behavior, booking services, integration, CSV storage, and persistence failure recovery.
+
 
 ## Technology Stack
 
@@ -36,19 +40,22 @@ flight-inventory-booking-system/
 │   ├── Passenger.h
 │   ├── Booking.h
 │   ├── BookingSystem.h
-│   └── CsvStorage.h
+│   ├── CsvStorage.h
+│   └── BookingService.h
 ├── src/
 │   ├── main.cpp
 │   ├── Flight.cpp
 │   ├── Passenger.cpp
 │   ├── Booking.cpp
 │   ├── BookingSystem.cpp
+│   ├── BookingService.cpp
 │   └── CsvStorage.cpp
 ├── tests/
 │   ├── test_flight.cpp
 │   ├── test_booking.cpp
 │   ├── test_booking_system.cpp
 │   ├── test_booking_integration.cpp
+│   ├── test_booking_service.cpp
 │   └── test_csv_storage.cpp
 ├── data/
 │   ├── flights.csv
@@ -198,15 +205,22 @@ Run the CSV storage tests independently:
 | `BookingSystemTests` | System-level booking rules |
 | `BookingIntegrationTests` | Integration between domain components |
 | `CsvStorageTests` | Saving, restoring, invalid statuses, and rejected partial loads |
+| `BookingServiceTests` | Booking operations, persistence failures, rollback, and operation blocking |
 
-**Latest verified local result:** 5/5 CTest suites passed (November 2026).
+
+**Latest verified local result:** 6/6 CTest suites passed (November 2026).
+
+The booking service tests also verify that failed persistence operations restore the expected booking status and seat availability.
+
 
 ## Current Limitations & Roadmap
 
 This is a local, single-process educational application. Planned improvements include:
 
-- Strengthen error recovery when an in-memory booking change succeeds but saving to disk fails.
-- Add stronger transactional guarantees and tests for file replacement failures.
+
+- Booking creation and cancellation support in-memory rollback when saving reports failure, but crash recovery and full transaction atomicity are not guaranteed.
+- Booking CSV writes use temporary files; flight and passenger CSV writes do not use the same replacement mechanism.
+- Unexpected process termination, power loss, and filesystem exceptions are not fully covered by the recovery tests.
 - Support standards-compliant CSV escaping or migrate to a database.
 - Expand tests for corrupted records, duplicates, insufficient seats, and failure injection.
 - Add CI builds and tests using GitHub Actions.

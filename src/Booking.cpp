@@ -130,3 +130,19 @@ bool Booking::restoreCancelled() {
 
     return true;
 }
+
+
+bool Booking::rollbackCancellation() {
+
+    if (status != BookingStatus::Cancelled) {
+        return false;
+    }
+
+    if (!flight.reserveSeat()) {
+        return false;
+    }
+
+    status = BookingStatus::Confirmed;
+
+    return true;
+}

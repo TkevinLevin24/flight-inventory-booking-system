@@ -92,6 +92,18 @@ void forEachBooking(
 
     bool cancelBooking(const std::string& bookingId);
 
+
+    // Undo a newly created confirmed booking
+    bool rollbackCreatedBooking(
+        const std::string& bookingId
+    );
+
+    // Undo a cancellation after a failed save
+bool rollbackCancelledBooking(
+    const std::string& bookingId
+);
+
+
     const Booking* findBooking(
         const std::string& bookingId
     ) const;

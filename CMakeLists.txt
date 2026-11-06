@@ -21,6 +21,7 @@ add_library(flight-booking-core STATIC
     src/Booking.cpp
     src/BookingSystem.cpp
     src/CsvStorage.cpp
+    src/BookingService.cpp
 )
 
 target_include_directories(flight-booking-core PUBLIC
@@ -110,4 +111,16 @@ add_test(
 add_test(
     NAME BookingIntegrationTests
     COMMAND test-booking-integration
+)
+add_executable(test-booking-service
+    tests/test_booking_service.cpp
+)
+
+target_link_libraries(test-booking-service
+    PRIVATE flight-booking-core
+)
+
+add_test(
+    NAME BookingServiceTests
+    COMMAND test-booking-service
 )

@@ -201,6 +201,49 @@ bool BookingSystem::cancelBooking(
     return it->second->cancelBooking();
 }
 
+
+bool BookingSystem::rollbackCreatedBooking(
+    const std::string& bookingId
+) {
+    auto it = bookings.find(bookingId);
+
+    if (it == bookings.end()) {
+        return false;
+    }
+
+    Booking& booking = *it->second;
+
+    // Only confirmed bookings can be rolled back here
+    if (!booking.isConfirmed()) {
+        return false;
+    }
+
+    // Release the reserved seat
+    if (!booking.cancelBooking()) {
+        return false;
+    }
+
+    // Remove the booking from memory
+    bookings.erase(it);
+
+    return true;
+}
+
+
+bool BookingSystem::rollbackCancelledBooking(
+    const std::string& bookingId
+) {
+    auto it = bookings.find(bookingId);
+
+    if (it == bookings.end()) {
+        return false;
+    }
+
+    return it->second->rollbackCancellation();
+}
+
+
+
 const Booking* BookingSystem::findBooking(
     const std::string& bookingId
 ) const {

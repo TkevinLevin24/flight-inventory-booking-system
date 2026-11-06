@@ -7,6 +7,7 @@
 
 #include "BookingSystem.h"
 #include "CsvStorage.h"
+#include <filesystem>
 
 void check(bool condition, const char* message) {
     if (!condition) {
@@ -153,7 +154,7 @@ int main() {
         );
     }
 
-    
+
     // TEST 4: Reject partial CSV loading
     {
         std::ofstream file(filename, std::ios::trunc);
@@ -227,6 +228,160 @@ int main() {
         std::remove(filename.c_str()) == 0,
         "Temporary CSV removed"
     );
+
+
+    // Test: failed CSV replacement must preserve original data.
+    {
+        namespace fs = std::filesystem;
+
+        const std::string testFilename =
+            "test_bookings_protected.csv";
+
+        const std::string temporaryFilename =
+            testFilename + ".tmp";
+
+        // Remove leftovers from a previous test run.
+        std::error_code cleanupError;
+        fs::remove(testFilename, cleanupError);
+        fs::remove(temporaryFilename, cleanupError);
+
+        // Create an original CSV file with known content.
+        const std::string originalContent =
+            "booking_id,flight_number,passenger_id,status\n"
+            "B_ORIGINAL,AV900,P900,CANCELLED\n";
+
+        {
+            std::ofstream originalFile(
+                testFilename,
+                std::ios::binary
+            );
+
+            check(
+                originalFile.is_open(),
+                "Protected test CSV opened"
+            );
+
+            originalFile << originalContent;
+            originalFile.close();
+
+            check(
+                !originalFile.fail(),
+                "Original test CSV written successfully"
+            );
+        }
+
+        // Simulate an existing temporary file.
+        {
+            std::ofstream temporaryFile(temporaryFilename);
+
+            check(
+                temporaryFile.is_open(),
+                "Blocking temporary file created"
+            );
+
+            temporaryFile << "BLOCKED\n";
+            temporaryFile.close();
+
+            check(
+                !temporaryFile.fail(),
+                "Blocking temporary file written"
+            );
+        }
+
+        // Attempt to save bookings while the temporary
+        // filename is already occupied.
+        BookingSystem protectedSystem;
+
+        check(
+            protectedSystem.addFlight(
+                "AV900", "BOG", "MIA", 10
+            ),
+            "Protected test flight registered"
+        );
+
+        check(
+            protectedSystem.addPassenger(
+                "P900", "Test Passenger", "test@example.com"
+            ),
+            "Protected test passenger registered"
+        );
+
+        check(
+            protectedSystem.createBooking(
+                "B_NEW", "AV900", "P900"
+            ),
+            "New booking created in memory"
+        );
+
+        const bool saveResult =
+            CsvStorage::saveBookings(
+                protectedSystem,
+                testFilename
+            );
+
+        check(
+            !saveResult,
+            "CSV save rejected because temporary file exists"
+        );
+
+        // Read the original file and verify its contents.
+        std::ifstream verificationFile(
+            testFilename,
+            std::ios::binary
+        );
+
+        check(
+            verificationFile.is_open(),
+            "Original CSV remains accessible"
+        );
+
+
+const std::string actualContent(
+    (std::istreambuf_iterator<char>(verificationFile)),
+    std::istreambuf_iterator<char>()
+);
+
+check(
+    actualContent == originalContent,
+    "Original CSV content preserved after failed save"
+);
+
+// Close the file before deleting it.
+verificationFile.close();
+
+check(
+    !verificationFile.is_open(),
+    "Verification file closed successfully"
+);
+
+// Remove test files.
+std::error_code temporaryRemoveError;
+std::error_code originalRemoveError;
+
+const bool temporaryRemoved =
+    fs::remove(temporaryFilename, temporaryRemoveError);
+
+const bool originalRemoved =
+    fs::remove(testFilename, originalRemoveError);
+
+check(
+    temporaryRemoved &&
+    originalRemoved &&
+    !temporaryRemoveError &&
+    !originalRemoveError &&
+    !fs::exists(testFilename) &&
+    !fs::exists(temporaryFilename),
+    "Protected test files removed"
+);
+
+
+        check(
+            !fs::exists(testFilename) &&
+            !fs::exists(temporaryFilename),
+            "Protected test files removed"
+        );
+    }
+
 
     std::cout
         << "\nALL CSV STORAGE TESTS PASSED!\n";
